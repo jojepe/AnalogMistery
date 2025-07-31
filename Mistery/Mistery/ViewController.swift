@@ -10,16 +10,18 @@ import UIKit
 class ViewController: UIViewController {
 
     private let customView = MyCustomView()
+    private let tvView = TVView()
     
     override func loadView() {
         super.loadView()
-        view = customView
+        view = tvView
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        customView.onButtonDownPress = navigateToSecondViewController
+        
+        //customView.onButtonDownPress = navigateToSecondViewController
     }
     
     func navigateToSecondViewController() {
@@ -97,6 +99,7 @@ final class MyCustomView: UIView {
         myButton.heightAnchor.constraint(equalToConstant: 100).isActive = true
     }
 }
+
 
 
 #Preview {
