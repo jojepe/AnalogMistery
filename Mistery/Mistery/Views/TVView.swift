@@ -25,7 +25,7 @@ final class TVView: UIView {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         
-        imageView.image = UIImage(named: "tvTest")
+        imageView.image = UIImage(named: "tvFinal")
         imageView.contentMode = .scaleAspectFit
         
         return imageView
@@ -75,7 +75,7 @@ final class TVView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         
-        playerLayer?.frame = tvImageView.frame.insetBy(dx: tvImageView.frame.width * 0.05, dy: tvImageView.frame.height * 0.28)
+        playerLayer?.frame = tvImageView.frame.insetBy(dx: tvImageView.frame.width * 0.05, dy: tvImageView.frame.height * 0.18)
     }
     
     required init?(coder: NSCoder) {
@@ -130,11 +130,11 @@ final class TVView: UIView {
             // TV Image
             tvImageView.centerXAnchor.constraint(equalTo: centerXAnchor),
             tvImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            tvImageView.widthAnchor.constraint(equalTo: widthAnchor, multiplier: 0.57),
+            tvImageView.widthAnchor.constraint(equalTo: widthAnchor),
             
             // TV Text
-            storyLabel.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -40),
-            storyLabel.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -10),
+            storyLabel.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -50),
+            storyLabel.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -20),
             storyLabel.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, constant: -100),
             storyLabel.heightAnchor.constraint(equalToConstant: 200),
             
