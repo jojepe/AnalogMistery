@@ -24,8 +24,17 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        showInitialText()
         setupButtonAction()
         //customView.onButtonDownPress = navigateToSecondViewController
+    }
+    
+    private func showInitialText() {
+        
+        if !story.storyTexts.isEmpty {
+            let firstText = story.storyTexts[0]
+            tvView.updateStoryText(with: firstText)
+        }
     }
     
     private func setupButtonAction() {
@@ -36,7 +45,9 @@ class ViewController: UIViewController {
             else { return }
             self.currentTextIndex += 1
             
-            self.tvView.storyLabel.text = self.story.storyTexts[self.currentTextIndex]
+            let newText = self.story.storyTexts[self.currentTextIndex]
+            
+            self.tvView.updateStoryText(with: newText)
         }
         
     }

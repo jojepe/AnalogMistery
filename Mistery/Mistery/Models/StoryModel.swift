@@ -11,7 +11,7 @@ struct StoryModel{
     
     let storyTexts = [
         
-        "Teste 1",
+        "Era uma vez uma pessoa que gostava muito de swift e quis mudar para o UIKIT, Era uma vez uma pessoa que gostava muito de swift e quis mudar para o UIKIT",
         "Teste 2",
         "Teste 3",
         "Teste 4",

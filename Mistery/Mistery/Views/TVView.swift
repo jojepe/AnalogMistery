@@ -11,6 +11,12 @@ import AVFoundation
 
 final class TVView: UIView {
     
+    // propriedades animacao texto
+    private var textAnimationTimer: Timer?
+    private var fullTextToAnimate: String = ""
+    private var currentCharIndex: Int = 0
+    
+    // propriedades video estatica
     private var player: AVQueuePlayer?
     private var playerLayer: AVPlayerLayer?
     private var playerLooper: AVPlayerLooper?
@@ -37,11 +43,13 @@ final class TVView: UIView {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         
+        //label.backgroundColor = .gray
         label.textColor = .red
         label.font = UIFont(name: "MeltedMonster", size: 30)
-        label.textAlignment = .center
+        label.textAlignment = .left
         label.numberOfLines = 0
-        label.text = "Olha minha TV"
+        label.text = ""
+                
         
         return label
         
@@ -65,7 +73,7 @@ final class TVView: UIView {
         super.init(frame: frame)
         
         backgroundColor = .black
-        
+                
         setupVideoPlayer()
         
         addSubviews()
@@ -88,6 +96,31 @@ final class TVView: UIView {
     
     @objc private func didPressNextButton() {
         onNextButtonTap()
+    }
+    
+    @objc private func animateNextCharacter() {
+        
+        guard currentCharIndex < fullTextToAnimate.count else {
+            textAnimationTimer?.invalidate()
+            return
+        }
+        
+        let currentTextIndex = fullTextToAnimate.index(fullTextToAnimate.startIndex, offsetBy: currentCharIndex)
+        let partialText = String(fullTextToAnimate[...currentTextIndex])
+        
+        storyLabel.text = partialText
+        
+        currentCharIndex += 1
+    }
+    
+    public func updateStoryText(with text: String) {
+        textAnimationTimer?.invalidate()
+        
+        storyLabel.text = ""
+        fullTextToAnimate = text
+        currentCharIndex = 0
+        
+        textAnimationTimer = Timer.scheduledTimer(timeInterval: 0.12, target: self, selector: #selector(animateNextCharacter), userInfo: nil, repeats: true)
     }
     
     
@@ -117,8 +150,8 @@ final class TVView: UIView {
     
     private func addSubviews() {
         
-        self.addSubview(tvImageView)
         self.addSubview(storyLabel)
+        self.addSubview(tvImageView)
         self.addSubview(nextButton)
         
     }
@@ -134,9 +167,9 @@ final class TVView: UIView {
             
             // TV Text
             storyLabel.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -50),
-            storyLabel.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -20),
-            storyLabel.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, constant: -100),
-            storyLabel.heightAnchor.constraint(equalToConstant: 200),
+            storyLabel.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
+            storyLabel.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.35),
+            storyLabel.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.42),
             
             //TV Button
             nextButton.topAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
@@ -148,6 +181,8 @@ final class TVView: UIView {
         ])
     }
 }
+
+
 
 #Preview{
     ViewController()
