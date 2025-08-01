@@ -38,7 +38,7 @@ final class TVView: UIView {
         label.translatesAutoresizingMaskIntoConstraints = false
         
         label.textColor = .red
-        label.font = UIFont(name: "Courier", size: 36)
+        label.font = UIFont(name: "MeltedMonster", size: 30)
         label.textAlignment = .center
         label.numberOfLines = 0
         label.text = "Olha minha TV"
