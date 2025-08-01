@@ -9,7 +9,7 @@ import Foundation
 
 struct StoryModel{
     
-    private let storyTexts = [
+    let storyTexts = [
         
         "Teste 1",
         "Teste 2",
