@@ -1,16 +1,8 @@
-//
-//  FilteredView.swift
-//  Mistery
-//
-//  Created by Joje on 01/08/25.
-//
-
+// FilteredView.swift (VERSÃO CORRIGIDA)
 
 import SwiftUI
 import CoreImage
 import CoreImage.CIFilterBuiltins
-
-// MARK: - FilteredView
 
 struct FilteredView<Content: View>: View {
     @State private var context = CIContext()
@@ -19,42 +11,48 @@ struct FilteredView<Content: View>: View {
     let content: Content
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            if let renderedImage = render(at: timeline.date) {
-                Image(uiImage: renderedImage)
+        GeometryReader { geometry in
+            // Usar .drawingGroup() pode melhorar a performance da renderização
+            let viewToRender = content
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .drawingGroup()
+            
+            if let image = render(content: viewToRender) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
             } else {
+                // Mostra o conteúdo original se a renderização falhar
                 content
             }
         }
     }
 
-
-    private func render(at date: Date) -> UIImage? {
-        
+    private func render(content: some View) -> UIImage? {
         let renderer = ImageRenderer(content: content)
 
+        // ✅ A CORREÇÃO ESTÁ AQUI:
+        // Primeiro, pegamos a UIImage.
         guard let uiImage = renderer.uiImage,
+              // DEPOIS, criamos a CIImage a partir da UIImage.
               let sourceImage = CIImage(image: uiImage) else {
             return nil
         }
 
         filter.inputImage = sourceImage
         
-
         let viewSize = sourceImage.extent.size
         let halfWidth = viewSize.width / 6.0
         let halfHeight = viewSize.height / 2.0
-        let amplitude = viewSize.width / 3 // O quão longe o centro da distorção se move
+        let amplitude = viewSize.width / 3.0
         
         let distortionCenterX = halfWidth + 0.74 * amplitude
-        let distortionCenterY = halfHeight + 0 * amplitude
+        let distortionCenterY = halfHeight
         
-        // valores do filtro
         filter.center = CGPoint(x: distortionCenterX, y: distortionCenterY)
         filter.radius = Float(viewSize.width / 3.0)
-        filter.scale = 0.1
+        filter.scale = 1
 
-        // imagem final
         guard let outputImage = filter.outputImage,
               let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
             return nil
@@ -64,32 +62,6 @@ struct FilteredView<Content: View>: View {
     }
 }
 
-// MARK: - ContentView
-
-struct ContentView: View {
-    var body: some View {
-        ZStack {
-            
-            
-            VStack {
-                Text("Distorção com Core Image")
-                    .font(.title)
-                    .padding()
-                
-               
-                FilteredView(content:
-                    Image("tvTestDist")
-                        .resizable()
-                        .scaledToFill()
-                )
-                
-            }
-        }
-    }
-}
-
-
-
-#Preview{
-    ContentView()
+#Preview {
+    ViewController()
 }

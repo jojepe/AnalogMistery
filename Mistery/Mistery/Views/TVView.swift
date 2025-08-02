@@ -1,76 +1,54 @@
-//
-//  TVView.swift
-//  Mistery
-//
-//  Created by Joje on 31/07/25.
-//
+// TVView.swift (VERSÃO COM VÍDEO E DISTORÇÃO)
 
 import UIKit
-import AVFoundation
 import SwiftUI
+import AVFoundation
 
 final class TVView: UIView {
     
-    // propriedades animacao texto
-    private var textAnimationTimer: Timer?
-    private var fullTextToAnimate: String = ""
-    private var currentCharIndex: Int = 0
-    
-    // propriedades video estatica
+    // --- Controles ---
+    // Recriamos o player que será passado para o SwiftUI
     private let player: AVQueuePlayer
-    private let viewModel = TVContentViewModel()
+    private var playerLooper: AVPlayerLooper?
     
     var onNextButtonTap: () -> Void = {}
     
-    // hosting controller
-    private var distortionHostingController: UIHostingController<FilteredView<Image>>?
-    // MARK: - Subviews
-    
-    // imagem da TV
+    // --- Subviews do UIKit ---
     private(set) lazy var tvImageView: UIImageView = {
-        
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        
         imageView.image = UIImage(named: "tvFinal")
         imageView.contentMode = .scaleAspectFit
-        
         return imageView
     }()
     
-    
-    
     private(set) lazy var nextButton: UIButton = {
-        
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
-        
-        //button.backgroundColor = .darkGray
-        
         button.addTarget(self, action: #selector(didPressNextButton), for: .touchUpInside)
-        
         return button
-        
     }()
     
     // MARK: - Lifecycle
     override init(frame: CGRect) {
-        
+        // Inicializamos o player
         guard let videoURL = Bundle.main.url(forResource: "static-video", withExtension: "mov") else {
-            fatalError("Erro: Não foi possível encontrar o arquivo de vídeo static-video.mov")
+            fatalError("Erro fatal: Vídeo static-video.mov não encontrado.")
         }
         let playerItem = AVPlayerItem(url: videoURL)
         self.player = AVQueuePlayer(playerItem: playerItem)
         
         super.init(frame: frame)
         
-        let playerLooper = AVPlayerLooper(player: self.player, templateItem: playerItem)
-        _ = playerLooper
-        
+        // O looper precisa ser uma propriedade da classe para se manter vivo
+        self.playerLooper = AVPlayerLooper(player: self.player, templateItem: playerItem)
+
         backgroundColor = .black
         
-        setupHostingController()
-        addSubviews()
+        setupSwiftUIView() // Renomeamos a função de setup
+        
+        addSubview(tvImageView)
+        addSubview(nextButton)
         setupConstraints()
         
         self.player.play()
@@ -80,54 +58,27 @@ final class TVView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    // MARK: - Button actions
-    
     @objc private func didPressNextButton() {
         onNextButtonTap()
     }
     
-    @objc private func animateNextCharacter() {
-        
-        guard currentCharIndex < fullTextToAnimate.count else {
-            textAnimationTimer?.invalidate()
-            return
-        }
-        
-        let currentTextIndex = fullTextToAnimate.index(fullTextToAnimate.startIndex, offsetBy: currentCharIndex)
-        viewModel.displayText = String(fullTextToAnimate[...currentTextIndex])
-        
-        currentCharIndex += 1
-    }
+    // MARK: - Setup
     
-    public func updateStoryText(with text: String) {
-        textAnimationTimer?.invalidate()
+    private func setupSwiftUIView() {
+        // 1. CRIAMOS O CONTEÚDO: a nossa ponte para o player de vídeo
+        let videoContentView = VideoPlayerUIView(player: self.player)
         
-        viewModel.displayText = ""
-        fullTextToAnimate = text
-        currentCharIndex = 0
+        // 2. PASSAMOS A VIEW DE VÍDEO PARA A FILTEREDVIEW
+        let filteredVideoView = FilteredView(content: videoContentView)
         
-        textAnimationTimer = Timer.scheduledTimer(timeInterval: 0.12, target: self, selector: #selector(animateNextCharacter), userInfo: nil, repeats: true)
-    }
-    
-    
-    // MARK: - Setup methods
-    
-    private func setupHostingController() {
-        
-        let combinedView = CombinedContentView(player: self.player, viewModel: self.viewModel)
-        
-        // 2. Passamos a view combinada para a FilteredView, que aplicará a distorção
-        let filteredContent = FilteredView(content: combinedView)
-        
-        // 3. Hospedamos tudo em um UIHostingController
-        let hostingController = UIHostingController(rootView: filteredContent)
+        // 3. HOSPEDAMOS TUDO
+        let hostingController = UIHostingController(rootView: filteredVideoView)
         hostingController.view.backgroundColor = .clear
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
         
-        // Adicionamos a view do controller como filha
-        self.addSubview(hostingController.view)
+        // 4. ADICIONAMOS À VIEW E POSICIONAMOS
+        addSubview(hostingController.view)
         
-        // Adicionamos as constraints para posicionar a tela distorcida
         NSLayoutConstraint.activate([
             hostingController.view.centerXAnchor.constraint(equalTo: self.centerXAnchor, constant: -50),
             hostingController.view.centerYAnchor.constraint(equalTo: self.centerYAnchor, constant: -25),
@@ -136,94 +87,67 @@ final class TVView: UIView {
         ])
     }
     
-    private func addSubviews() {
-        
-        self.addSubview(tvImageView)
-        self.addSubview(nextButton)
-        
-    }
-    
     private func setupConstraints() {
-        
         NSLayoutConstraint.activate([
-            
-            // TV Image
             tvImageView.centerXAnchor.constraint(equalTo: centerXAnchor),
             tvImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
             tvImageView.widthAnchor.constraint(equalTo: widthAnchor),
             
-            
-            
-            //TV Button
             nextButton.topAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
             nextButton.centerXAnchor.constraint(equalTo: self.centerXAnchor, constant: 190),
             nextButton.widthAnchor.constraint(equalToConstant: 100),
             nextButton.heightAnchor.constraint(equalToConstant: 160)
-            
-            
         ])
     }
 }
 
-// video estatica
+// ===================================================================
+// MARK: - PONTES PARA O SWIFTUI (COLOQUE NO FINAL DO ARQUIVO)
+// ===================================================================
+
+/// Ponte para exibir o AVPlayer no SwiftUI
 struct VideoPlayerUIView: UIViewRepresentable {
     let player: AVPlayer
+
+    func makeUIView(context: Context) -> PlayerUIView {
+        return PlayerUIView(player: player)
+    }
+
+    func updateUIView(_ uiView: PlayerUIView, context: Context) {}
+}
+
+/// Uma UIView customizada que hospeda corretamente uma AVPlayerLayer
+class PlayerUIView: UIView {
+    // ... e substitua todo o seu conteúdo por este:
+
+    // 1. Dizemos ao UIKit que a camada principal desta view é uma AVPlayerLayer.
+    override static var layerClass: AnyClass {
+        return AVPlayerLayer.self
+    }
     
-    func makeUIView(context: Context) -> UIView{
-        let view = UIView()
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspectFill
-        playerLayer.frame = view.bounds
-        view.layer.addSublayer(playerLayer)
+    // 2. Criamos uma propriedade para acessar a layer com o tipo correto.
+    var playerLayer: AVPlayerLayer {
+        return self.layer as! AVPlayerLayer
+    }
+    
+    // 3. O inicializador fica mais simples.
+    init(player: AVPlayer) {
+        super.init(frame: .zero)
         
-        //        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        //        playerLayer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        
-        return view
+        // Apenas definimos o player e a gravidade do vídeo.
+        // Não precisamos adicionar sublayer nem nos preocupar com o frame.
+        self.playerLayer.player = player
+        self.playerLayer.videoGravity = .resizeAspectFill
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {
-        // Nenhuma atualização necessária aqui por enquanto
-    }
+    // Não precisamos mais do 'layoutSubviews' aqui, pois o UIKit
+    // gerencia o tamanho da camada principal da view automaticamente.
 }
 
-// texto que passa dentro da TV
-struct LabelUIView: UIViewRepresentable {
-    @ObservedObject var viewModel: TVContentViewModel
-    
-    func makeUIView(context: Context) -> UILabel {
-        let label = UILabel()
-        label.textColor = .red
-        label.font = UIFont(name: "MeltedMonster", size: 30)
-        label.textAlignment = .left
-        label.numberOfLines = 0
-        return label
-    }
-    
-    func updateUIView(_ uiView: UILabel, context: Context) {
-        // Atualiza o texto do UILabel sempre que o viewModel mudar
-        uiView.text = viewModel.displayText
-    }
-}
-
-struct CombinedContentView: View {
-    let player: AVPlayer
-    @ObservedObject var viewModel: TVContentViewModel
-    
-    var body: some View {
-        ZStack(alignment: .leading) {
-            // Camada de vídeo no fundo
-            VideoPlayerUIView(player: player)
-            
-            // Camada de texto na frente
-            // O padding ajusta a posição para simular suas constraints originais
-            LabelUIView(viewModel: viewModel)
-                .padding(.leading, 20)
-                .padding(.top, 15)
-        }
-    }
-}
-
-#Preview{
+#Preview {
     ViewController()
 }
