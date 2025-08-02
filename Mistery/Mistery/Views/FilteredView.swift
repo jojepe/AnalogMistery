@@ -10,7 +10,7 @@ import SwiftUI
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
-// MARK: - FilteredView (Corrigida e Refatorada)
+// MARK: - FilteredView
 
 struct FilteredView<Content: View>: View {
     @State private var context = CIContext()
@@ -19,54 +19,42 @@ struct FilteredView<Content: View>: View {
     let content: Content
 
     var body: some View {
-        // TimelineView é perfeito para isso. Ele nos dá o tempo atual em cada frame.
         TimelineView(.animation) { timeline in
-            // Tentamos renderizar a imagem com o tempo atual fornecido pelo timeline
             if let renderedImage = render(at: timeline.date) {
                 Image(uiImage: renderedImage)
             } else {
-                // Se a renderização falhar, mostramos o conteúdo original
                 content
             }
         }
     }
 
-    /// Função que aplica o filtro e retorna uma UIImage.
-    /// Ela agora recebe o tempo atual como parâmetro.
+
     private func render(at date: Date) -> UIImage? {
-        // ✅ CORREÇÃO 1: Corrigindo o erro 'no member ciImage'
-        // Primeiro, criamos o renderer.
+        
         let renderer = ImageRenderer(content: content)
 
-        // Depois, pegamos a UIImage e SÓ ENTÃO criamos a CIImage a partir dela.
         guard let uiImage = renderer.uiImage,
               let sourceImage = CIImage(image: uiImage) else {
             return nil
         }
 
-        // Agora podemos configurar o filtro com a sourceImage correta.
         filter.inputImage = sourceImage
         
-        // Usamos o tempo fornecido pelo TimelineView para animar.
-        // Multiplicar por 2 torna a animação um pouco mais rápida.
-        let elapsedTime = date.timeIntervalSinceReferenceDate * 2.0
 
-        // ✅ CORREÇÃO 2: Quebrando os cálculos complexos
-        // Isso evita o erro 'unable to type-check'.
         let viewSize = sourceImage.extent.size
-        let halfWidth = viewSize.width / 2.0
+        let halfWidth = viewSize.width / 6.0
         let halfHeight = viewSize.height / 2.0
-        let amplitude = viewSize.width / 3.5 // O quão longe o centro da distorção se move
-
-        let distortionCenterX = halfWidth + cos(elapsedTime) * amplitude
-        let distortionCenterY = halfHeight + sin(elapsedTime) * amplitude
+        let amplitude = viewSize.width / 3 // O quão longe o centro da distorção se move
         
-        // Aplicamos os valores ao filtro
+        let distortionCenterX = halfWidth + 0.74 * amplitude
+        let distortionCenterY = halfHeight + 0 * amplitude
+        
+        // valores do filtro
         filter.center = CGPoint(x: distortionCenterX, y: distortionCenterY)
         filter.radius = Float(viewSize.width / 3.0)
-        filter.scale = 0.5
+        filter.scale = 0.1
 
-        // Geramos a imagem final
+        // imagem final
         guard let outputImage = filter.outputImage,
               let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
             return nil
@@ -76,25 +64,23 @@ struct FilteredView<Content: View>: View {
     }
 }
 
-// MARK: - ContentView (Onde a Mágica Acontece)
+// MARK: - ContentView
 
 struct ContentView: View {
     var body: some View {
         ZStack {
-            // Você pode manter um fundo se quiser
-            // Color.black.ignoresSafeArea()
+            
             
             VStack {
                 Text("Distorção com Core Image")
                     .font(.title)
                     .padding()
                 
-                // ✅ CORREÇÃO PRINCIPAL:
-                // Passe a sua imagem como o `content` a ser distorcido.
+               
                 FilteredView(content:
-                    Image("tvTestDist") // Certifique-se que o nome "tvTestDist" está no seu Asset Catalog
+                    Image("tvTestDist")
                         .resizable()
-                        .scaledToFill() // Garante que a imagem preencha o frame
+                        .scaledToFill() 
                 )
                 
             }
