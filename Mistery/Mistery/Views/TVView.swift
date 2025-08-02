@@ -7,7 +7,7 @@
 
 import UIKit
 import AVFoundation
-
+import SwiftUI
 
 final class TVView: UIView {
     
@@ -23,6 +23,8 @@ final class TVView: UIView {
     
     var onNextButtonTap: () -> Void = {}
     
+    // hosting controller
+    private var distortionHostingController: UIHostingController<FilteredView<Image>>?
     // MARK: - Subviews
     
     // imagem da TV
@@ -75,7 +77,8 @@ final class TVView: UIView {
         backgroundColor = .black
                 
         setupVideoPlayer()
-        
+        setupDistortionView()
+
         addSubviews()
         setupConstraints()
     }
@@ -146,6 +149,11 @@ final class TVView: UIView {
         }
         
         player?.play()
+    }
+    
+    private func setupDistortionView() {
+        
+        
     }
     
     private func addSubviews() {

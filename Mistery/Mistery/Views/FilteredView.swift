@@ -80,7 +80,7 @@ struct ContentView: View {
                 FilteredView(content:
                     Image("tvTestDist")
                         .resizable()
-                        .scaledToFill() 
+                        .scaledToFill()
                 )
                 
             }
