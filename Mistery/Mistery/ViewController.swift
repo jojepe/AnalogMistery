@@ -33,7 +33,7 @@ class ViewController: UIViewController {
         
         if !story.storyTexts.isEmpty {
             let firstText = story.storyTexts[0]
-           // tvView.updateStoryText(with: firstText)
+            tvView.updateStoryText(with: firstText)
         }
     }
     
@@ -47,7 +47,7 @@ class ViewController: UIViewController {
             
             let newText = self.story.storyTexts[self.currentTextIndex]
             
-           // self.tvView.updateStoryText(with: newText)
+            self.tvView.updateStoryText(with: newText)
         }
         
     }
