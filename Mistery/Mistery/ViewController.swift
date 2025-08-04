@@ -26,7 +26,6 @@ class ViewController: UIViewController {
         
         showInitialText()
         setupButtonAction()
-        //customView.onButtonDownPress = navigateToSecondViewController
     }
     
     private func showInitialText() {
@@ -52,17 +51,6 @@ class ViewController: UIViewController {
         
     }
     
-    func navigateToSecondViewController() {
-        let secondViewController = OtherViewController()
-        navigationController?.pushViewController(secondViewController, animated: true)
-    }
-}
-
-class OtherViewController: UIViewController {
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .red
-    }
 }
 
 

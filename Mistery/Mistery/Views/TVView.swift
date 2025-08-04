@@ -1,19 +1,16 @@
-// TVView.swift (VERSÃO FINAL COM PROCESSAMENTO MANUAL DE FRAMES)
+// TVView.swift (VERSÃO COM ARQUITETURA FINAL E ROBUSTA)
 
 import UIKit
 import AVFoundation
 
 final class TVView: UIView {
     
-    // --- Propriedades para Processamento Manual ---
+    // --- Propriedades ---
     private var player: AVPlayer?
     private var videoOutput: AVPlayerItemVideoOutput?
     private var displayLink: CADisplayLink?
     private var ciContext = CIContext()
-    
-    private var textAnimationTimer: Timer?
-        private var fullTextToAnimate: String = ""
-        private var currentCharIndex: Int = 0
+    private var playerStatusObserver: NSKeyValueObservation?
     
     var onNextButtonTap: () -> Void = {}
 
@@ -26,23 +23,31 @@ final class TVView: UIView {
         return imageView
     }()
     
-    // A UIImageView que mostrará o vídeo distorcido
-    private(set) lazy var processedFrameImageView: UIImageView = {
+    // ALTERADO: Uma view dedicada apenas para o vídeo distorcido.
+    private(set) lazy var distortedVideoImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true // Garante que a imagem não saia dos limites
+        imageView.clipsToBounds = true
         return imageView
     }()
     
+    // NOVO: Uma view dedicada apenas para o texto distorcido.
+    private(set) lazy var distortedTextImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFit // Fit para não cortar o texto
+        return imageView
+    }()
+    
+    // O label continua sendo nosso molde invisível.
     private(set) lazy var storyLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .red
         label.font = UIFont(name: "MeltedMonster", size: 30)
         label.textAlignment = .left
         label.numberOfLines = 0
-        label.text = ""
+        label.preferredMaxLayoutWidth = 450 // Essencial para quebra de linha
         return label
     }()
     
@@ -57,139 +62,146 @@ final class TVView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .black
-        
-        setupManualFrameProcessing()
+        setupVideoProcessing()
         addSubviews()
         setupConstraints()
+    }
+    
+    deinit {
+        playerStatusObserver?.invalidate()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
+    // ALTERADO: Esta função agora faz o pipeline completo para o TEXTO.
     public func updateStoryText(with text: String) {
-            textAnimationTimer?.invalidate()
-            
-            storyLabel.text = ""
-            fullTextToAnimate = text
-            currentCharIndex = 0
-            
-            textAnimationTimer = Timer.scheduledTimer(timeInterval: 0.12, target: self, selector: #selector(animateNextCharacter), userInfo: nil, repeats: true)
+        // 1. Prepara o label
+        storyLabel.text = text
+        storyLabel.sizeToFit()
+        
+        guard let text = storyLabel.text, !text.isEmpty else {
+            self.distortedTextImageView.image = nil
+            return
         }
         
-        @objc private func animateNextCharacter() {
-            guard currentCharIndex < fullTextToAnimate.count else {
-                textAnimationTimer?.invalidate()
-                return
-            }
-            
-            let currentTextIndex = fullTextToAnimate.index(fullTextToAnimate.startIndex, offsetBy: currentCharIndex)
-            let partialText = String(fullTextToAnimate[...currentTextIndex])
-            
-            storyLabel.text = partialText
-            
-            currentCharIndex += 1
+        // 2. Renderiza o label para uma UIImage
+        let renderer = UIGraphicsImageRenderer(bounds: storyLabel.bounds)
+        let textImage = renderer.image { _ in
+            storyLabel.drawHierarchy(in: storyLabel.bounds, afterScreenUpdates: true)
         }
+        
+        // 3. Converte para CIImage
+        guard let textCIImage = CIImage(image: textImage) else { return }
+        
+        // 4. Aplica o filtro de distorção APENAS no texto
+        var finalImage: CIImage? = textCIImage
+        if let bumpFilter = CIFilter(name: "CIBumpDistortion") {
+            bumpFilter.setValue(textCIImage, forKey: kCIInputImageKey)
+            let viewSize = textCIImage.extent.size
+            bumpFilter.setValue(CIVector(x: viewSize.width * 0.5, y: viewSize.height * 0.5), forKey: kCIInputCenterKey)
+            bumpFilter.setValue(viewSize.width * 0.8, forKey: kCIInputRadiusKey) // Raio maior para textos
+            bumpFilter.setValue(0.5, forKey: kCIInputScaleKey)
+            
+            if let distorted = bumpFilter.outputImage {
+                finalImage = distorted
+            }
+        }
+        
+        // 5. Exibe a imagem final do texto na sua própria UIImageView
+        if let finalImage = finalImage, let cgImage = ciContext.createCGImage(finalImage, from: finalImage.extent) {
+            self.distortedTextImageView.image = UIImage(cgImage: cgImage)
+        }
+    }
     
     @objc private func didPressNextButton() {
         onNextButtonTap()
     }
 
     // MARK: - Setup
-    private func setupManualFrameProcessing() {
-        guard let videoURL = Bundle.main.url(forResource: "static-video", withExtension: "mov") else {
-            print("Erro: Vídeo não encontrado")
-            return
-        }
-        
-        // 1. Configurar a "saída de vídeo" para pegarmos os frames
+    // setupVideoProcessing e setupDisplayLink permanecem iguais
+    private func setupVideoProcessing() {
+        guard let videoURL = Bundle.main.url(forResource: "static-video", withExtension: "mov") else { return }
+        let playerItem = AVPlayerItem(url: videoURL)
         let pixelBufferAttributes = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: pixelBufferAttributes)
-        
-        let playerItem = AVPlayerItem(url: videoURL)
         playerItem.add(videoOutput!)
-        
         player = AVPlayer(playerItem: playerItem)
-        
-        // Configurar o loop do vídeo
         NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player?.currentItem, queue: .main) { [weak self] _ in
             self?.player?.seek(to: .zero)
             self?.player?.play()
         }
-        
-        // 2. Configurar o DisplayLink para chamar a função de atualização a cada frame da tela
-        displayLink = CADisplayLink(target: self, selector: #selector(updateFrame))
-        displayLink?.add(to: .main, forMode: .common)
-        
-        player?.play()
+        playerStatusObserver = player?.currentItem?.observe(\.status, options: [.new]) { [weak self] item, change in
+            guard let self = self else { return }
+            if item.status == .readyToPlay {
+                self.setupDisplayLink()
+                self.player?.play()
+            }
+        }
     }
     
-    // 3. Esta função é chamada a 60fps (ou mais)
+    private func setupDisplayLink() {
+        displayLink = CADisplayLink(target: self, selector: #selector(updateFrame))
+        displayLink?.add(to: .main, forMode: .common)
+    }
+
+    // ALTERADO: Esta função agora faz o pipeline completo APENAS para o VÍDEO.
     @objc private func updateFrame() {
-        let currentTime = player?.currentItem?.currentTime() ?? .zero
-        
-        // 4. Verificamos se há um novo frame de vídeo disponível
-        guard let videoOutput = videoOutput, videoOutput.hasNewPixelBuffer(forItemTime: currentTime),
+        guard let player = player, let videoOutput = videoOutput else { return }
+        let currentTime = player.currentItem?.currentTime() ?? .zero
+        guard videoOutput.hasNewPixelBuffer(forItemTime: currentTime),
               let pixelBuffer = videoOutput.copyPixelBuffer(forItemTime: currentTime, itemTimeForDisplay: nil) else {
             return
         }
         
-        // 5. Criamos uma CIImage a partir do frame do vídeo
-        let sourceImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let videoCIImage = CIImage(cvPixelBuffer: pixelBuffer)
+        var finalImage: CIImage? = videoCIImage
         
-        // 6. APLICAMOS O SEU FILTRO DE DISTORÇÃO
-        guard let bumpFilter = CIFilter(name: "CIBumpDistortion") else { return }
-        
-        bumpFilter.setValue(sourceImage, forKey: kCIInputImageKey)
-        
-        let viewSize = sourceImage.extent.size
-        let halfWidth = viewSize.width / 6.0
-        let halfHeight = viewSize.height / 2.0
-        let amplitude = viewSize.width / 3.0
-        
-        let distortionCenterX = halfWidth + 0.88 * amplitude
-        let distortionCenterY = halfHeight + 0.05 * amplitude
-        
-        bumpFilter.setValue(CIVector(cgPoint: CGPoint(x: distortionCenterX, y: distortionCenterY)), forKey: kCIInputCenterKey)
-        bumpFilter.setValue(Float(viewSize.width / 3.0), forKey: kCIInputRadiusKey)
-        bumpFilter.setValue(1, forKey: kCIInputScaleKey)
-        
-        // 7. Renderizamos a imagem final com o filtro
-        guard let outputImage = bumpFilter.outputImage,
-              let cgImage = ciContext.createCGImage(outputImage, from: sourceImage.extent) else {
-            return
+        if let bumpFilter = CIFilter(name: "CIBumpDistortion") {
+            bumpFilter.setValue(videoCIImage, forKey: kCIInputImageKey)
+            let viewSize = videoCIImage.extent.size
+            bumpFilter.setValue(CIVector(x: viewSize.width * 0.5, y: viewSize.height * 0.5), forKey: kCIInputCenterKey)
+            bumpFilter.setValue(viewSize.width * 0.4, forKey: kCIInputRadiusKey)
+            bumpFilter.setValue(0.5, forKey: kCIInputScaleKey)
+            if let distorted = bumpFilter.outputImage {
+                finalImage = distorted
+            }
         }
         
-        // 8. Exibimos a imagem processada na nossa UIImageView
-        self.processedFrameImageView.image = UIImage(cgImage: cgImage)
+        if let finalImage = finalImage, let cgImage = ciContext.createCGImage(finalImage, from: finalImage.extent) {
+            self.distortedVideoImageView.image = UIImage(cgImage: cgImage)
+        }
     }
     
     private func addSubviews() {
-        addSubview(processedFrameImageView) // A view que mostra o vídeo processado
-        addSubview(storyLabel)
-        addSubview(tvImageView)           // A moldura da TV por cima
-                    // O texto por cima de tudo
-        addSubview(nextButton)              // O botão por cima de tudo
+        // A ordem de adição define a sobreposição (Z-index)
+        addSubview(distortedVideoImageView) // Fundo
+        addSubview(distortedTextImageView)  // Meio
+        addSubview(tvImageView)              // Frente (moldura)
+        addSubview(nextButton)               // Botão por cima de tudo
     }
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            // Constraints para a UIImageView que exibe o vídeo, para que fique dentro da TV
-            processedFrameImageView.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor),
-            processedFrameImageView.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor),
-            processedFrameImageView.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.89),
-            processedFrameImageView.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.65),
+            // Constraints para a view do VÍDEO
+            distortedVideoImageView.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor),
+            distortedVideoImageView.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor),
+            distortedVideoImageView.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.89),
+            distortedVideoImageView.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.65),
+            
+            // Constraints para a view do TEXTO (as que você forneceu!)
+            distortedTextImageView.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -50),
+            distortedTextImageView.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
+            distortedTextImageView.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.35),
+            distortedTextImageView.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.42),
 
-            // O resto das constraints
+            // Constraints para a MOLDURA da TV
             tvImageView.centerXAnchor.constraint(equalTo: centerXAnchor),
             tvImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
             tvImageView.widthAnchor.constraint(equalTo: widthAnchor),
             
-            storyLabel.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -50),
-            storyLabel.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
-            storyLabel.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.35),
-            storyLabel.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.42),
-            
+            // Constraints para o BOTÃO
             nextButton.topAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
             nextButton.centerXAnchor.constraint(equalTo: self.centerXAnchor, constant: 190),
             nextButton.widthAnchor.constraint(equalToConstant: 100),
@@ -201,3 +213,4 @@ final class TVView: UIView {
 #Preview{
     ViewController()
 }
+
