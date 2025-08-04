@@ -15,7 +15,6 @@ struct StoryModel{
         "Ele tinha um aplicativo para fazer",
         "E esse aplicativo tinha que ser feito em uma semana",
         "O que você acha que o programador deveria fazer?",
-        "Botões",
         "Fim"
     ]
     
