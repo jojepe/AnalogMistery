@@ -44,10 +44,10 @@ final class TVView: UIView {
     private(set) lazy var storyLabel: UILabel = {
         let label = UILabel()
         label.textColor = .red
-        label.font = UIFont(name: "MeltedMonster", size: 30)
-        label.textAlignment = .left
+        label.font = UIFont(name: "Crackajack", size: -10)
+        label.textAlignment = .center
         label.numberOfLines = 0
-        label.preferredMaxLayoutWidth = 450 // Essencial para quebra de linha
+        label.preferredMaxLayoutWidth = 0 // Essencial para quebra de linha
         return label
     }()
     
@@ -101,8 +101,8 @@ final class TVView: UIView {
             bumpFilter.setValue(textCIImage, forKey: kCIInputImageKey)
             let viewSize = textCIImage.extent.size
             bumpFilter.setValue(CIVector(x: viewSize.width * 0.5, y: viewSize.height * 0.5), forKey: kCIInputCenterKey)
-            bumpFilter.setValue(viewSize.width * 0.8, forKey: kCIInputRadiusKey) // Raio maior para textos
-            bumpFilter.setValue(0.5, forKey: kCIInputScaleKey)
+            bumpFilter.setValue(viewSize.width * 1, forKey: kCIInputRadiusKey) // Raio maior para textos
+            bumpFilter.setValue(0.2, forKey: kCIInputScaleKey)
             
             if let distorted = bumpFilter.outputImage {
                 finalImage = distorted
@@ -183,6 +183,7 @@ final class TVView: UIView {
     }
     
     private func setupConstraints() {
+        
         NSLayoutConstraint.activate([
             // Constraints para a view do VÍDEO
             distortedVideoImageView.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor),
@@ -193,7 +194,7 @@ final class TVView: UIView {
             // Constraints para a view do TEXTO (as que você forneceu!)
             distortedTextImageView.centerXAnchor.constraint(equalTo: tvImageView.centerXAnchor, constant: -50),
             distortedTextImageView.centerYAnchor.constraint(equalTo: tvImageView.centerYAnchor, constant: -25),
-            distortedTextImageView.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.35),
+            distortedTextImageView.widthAnchor.constraint(equalTo: tvImageView.widthAnchor, multiplier: 0.64),
             distortedTextImageView.heightAnchor.constraint(equalTo: tvImageView.heightAnchor, multiplier: 0.42),
 
             // Constraints para a MOLDURA da TV

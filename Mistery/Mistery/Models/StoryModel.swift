@@ -11,12 +11,13 @@ struct StoryModel{
     
     let storyTexts = [
         
-        "Era uma vez uma pessoa que gostava muito de swift e quis mudar para o UIKIT, Era uma vez uma pessoa que gostava muito de swift e quis mudar para o UIKIT",
-        "Teste 2",
-        "Teste 3",
-        "Teste 4",
+        "Essa é a história\nde um programador\nmuito cansado",
+        "Ele tinha um aplicativo para fazer",
+        "E esse aplicativo tinha que ser feito em uma semana",
+        "O que você acha que o programador deveria fazer?",
+        "Botões",
         "Fim"
     ]
     
-
+    
 }
